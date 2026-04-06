@@ -112,10 +112,20 @@ export default function ImageColumn({
         // Preset active: show preset image + upload overlay
         <div style={{ position: "relative" }}>
           <div style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: config.accent,
+            marginBottom: "6px",
+          }}>
+            Image {side} — {imageData.name}
+          </div>
+          <div style={{
             position: "relative",
             borderRadius: "4px",
             overflow: "hidden",
-            border: "1px solid #1e1e2e",
+            border: `1px solid ${config.borderAccent}`,
           }}>
             <img
               src={imageData.url}
@@ -127,24 +137,6 @@ export default function ImageColumn({
                 display: "block",
               }}
             />
-            <div style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: "8px 12px",
-              background: "linear-gradient(transparent, rgba(10,10,15,0.9))",
-            }}>
-              <span style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "11px",
-                color: "#e8e6e3",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}>
-                {imageData.name}
-              </span>
-            </div>
           </div>
           <div
             style={{

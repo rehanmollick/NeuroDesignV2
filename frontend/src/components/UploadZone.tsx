@@ -118,18 +118,30 @@ export default function UploadZone({ label, file, onFileSelect, compact }: Uploa
         role="button"
         tabIndex={0}
         aria-label={`Upload ${label}`}
-        className="cursor-pointer transition-all duration-200"
+        className="cursor-pointer"
         style={{
-          border: `1px solid ${isDragging ? "#00e5a0" : "#1e1e2e"}`,
-          borderRadius: "4px",
-          background: isDragging ? "#0f1f18" : "transparent",
-          height: compact ? "52px" : "100px",
+          border: `2px dashed ${isDragging ? "#00e5a0" : "#00e5a066"}`,
+          borderRadius: "8px",
+          background: isDragging ? "#0f1f18" : "#12121a",
+          height: compact ? "60px" : "160px",
           display: "flex",
-          flexDirection: compact ? "row" : "column",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: compact ? "6px" : "8px",
-          padding: compact ? "0 12px" : undefined,
+          gap: "4px",
+          transition: "all 200ms ease-out",
+        }}
+        onMouseEnter={(e) => {
+          if (!isDragging) {
+            e.currentTarget.style.borderColor = "#00e5a0"
+            e.currentTarget.style.background = "#0f1f18"
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isDragging) {
+            e.currentTarget.style.borderColor = "#00e5a066"
+            e.currentTarget.style.background = "#12121a"
+          }
         }}
         onDragOver={(e) => {
           e.preventDefault()
@@ -145,14 +157,13 @@ export default function UploadZone({ label, file, onFileSelect, compact }: Uploa
           }
         }}
       >
-        {/* Simple upload icon */}
         <svg
-          width="24"
-          height="24"
+          width={compact ? "24" : "36"}
+          height={compact ? "24" : "36"}
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#8a8a9a"
-          strokeWidth="1"
+          stroke="#00e5a0"
+          strokeWidth="1.5"
           strokeLinecap="round"
         >
           <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
@@ -161,12 +172,25 @@ export default function UploadZone({ label, file, onFileSelect, compact }: Uploa
         <span
           style={{
             fontFamily: "var(--font-sans)",
-            fontSize: "13px",
-            color: "#8a8a9a",
+            fontSize: compact ? "13px" : "15px",
+            fontWeight: 500,
+            color: "#e8e6e3",
           }}
         >
-          Drop image or click
+          Drop image or click to upload
         </span>
+        {!compact && (
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              color: "#8a8a9a",
+              letterSpacing: "0.05em",
+            }}
+          >
+            JPG, PNG, or WebP (max 10MB)
+          </span>
+        )}
       </div>
 
       <input

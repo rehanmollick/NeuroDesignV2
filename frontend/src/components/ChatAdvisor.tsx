@@ -181,7 +181,7 @@ export default function ChatAdvisor({ comparison, isOpen, onClose }: ChatAdvisor
             color: "#8a8a9a",
             marginLeft: "auto",
           }}>
-            Gemma 4
+            Gemini 2.5 Flash
           </span>
           <button
             onClick={onClose}

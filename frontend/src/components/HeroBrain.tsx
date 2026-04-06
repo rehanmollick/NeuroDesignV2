@@ -1,18 +1,55 @@
 "use client"
 
-import { useRef, useMemo } from "react"
+import { useRef, useMemo, Component, type ReactNode } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { OrbitControls, Environment } from "@react-three/drei"
 import * as THREE from "three"
 import { MeshData } from "@/lib/types"
 
-// Synapse pulse: randomly fire 2-3 regions with accent green
+class CanvasErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: string | null }
+> {
+  state = { error: null as string | null }
+  static getDerivedStateFromError(err: Error) {
+    return { error: err.message }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ color: "#ff6b6b", fontSize: "12px", fontFamily: "var(--font-mono)", padding: "20px" }}>
+          3D render error: {this.state.error}
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+// Fast green dash jumping through random brain regions like a neural signal
 function SynapsingBrain({ meshData }: { meshData: MeshData }) {
   const meshRef = useRef<THREE.Mesh>(null)
-  const activeRegions = useRef<Map<string, number>>(new Map())
-  const lastPulse = useRef(0)
 
   const regionNames = useMemo(() => Object.keys(meshData.regionMap), [meshData.regionMap])
+
+  // Precompute a shuffled order of regions, and region centroids for trail effect
+  const regionOrder = useRef<string[]>([])
+  const regionIndex = useRef(0)
+  const regionStartTime = useRef(0)
+
+  // Shuffle regions into a random path
+  const shuffleRegions = () => {
+    const shuffled = [...regionNames]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    regionOrder.current = shuffled
+    regionIndex.current = 0
+  }
+
+  // Track last few regions for fading trail
+  const trail = useRef<{ region: string; startTime: number }[]>([])
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
@@ -33,12 +70,6 @@ function SynapsingBrain({ meshData }: { meshData: MeshData }) {
     geo.computeVertexNormals()
 
     const colors = new Float32Array(meshData.vertices.length * 3)
-    // Darker silver base: #8a8a96 — metallic gray, NOT white
-    for (let i = 0; i < meshData.vertices.length; i++) {
-      colors[i * 3] = 0.54
-      colors[i * 3 + 1] = 0.54
-      colors[i * 3 + 2] = 0.59
-    }
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3))
     return geo
   }, [meshData])
@@ -48,17 +79,36 @@ function SynapsingBrain({ meshData }: { meshData: MeshData }) {
     const colorAttr = geometry.getAttribute("color") as THREE.BufferAttribute
     const colors = colorAttr.array as Float32Array
 
-    // Fire new regions every 2-3 seconds
-    if (elapsed - lastPulse.current > 2 + Math.random()) {
-      lastPulse.current = elapsed
-      const count = 2 + Math.floor(Math.random() * 2)
-      for (let i = 0; i < count; i++) {
-        const region = regionNames[Math.floor(Math.random() * regionNames.length)]
-        if (!activeRegions.current.has(region)) {
-          activeRegions.current.set(region, elapsed)
-        }
+    const hopDuration = 0.18 // how long each region stays lit
+    const trailDuration = 1.8 // long trail = more regions glowing at once
+
+    // Initialize or reshuffle when we've gone through all regions
+    if (regionOrder.current.length === 0 || regionIndex.current >= regionOrder.current.length) {
+      shuffleRegions()
+      regionStartTime.current = elapsed
+    }
+
+    // Time to hop to next region?
+    const timeSinceHop = elapsed - regionStartTime.current
+    if (timeSinceHop >= hopDuration) {
+      // Push current region to trail
+      trail.current.push({
+        region: regionOrder.current[regionIndex.current],
+        startTime: elapsed,
+      })
+      // Advance
+      regionIndex.current++
+      regionStartTime.current = elapsed
+
+      // If we finished all regions, reshuffle
+      if (regionIndex.current >= regionOrder.current.length) {
+        shuffleRegions()
+        regionStartTime.current = elapsed
       }
     }
+
+    // Clean old trail entries
+    trail.current = trail.current.filter(t => elapsed - t.startTime < trailDuration)
 
     // Reset all to silver base
     for (let i = 0; i < meshData.vertices.length; i++) {
@@ -67,25 +117,33 @@ function SynapsingBrain({ meshData }: { meshData: MeshData }) {
       colors[i * 3 + 2] = 0.59
     }
 
-    // Apply pulses
-    const toRemove: string[] = []
-    activeRegions.current.forEach((startTime, region) => {
-      const age = elapsed - startTime
-      const duration = 1.5
-      if (age > duration) {
-        toRemove.push(region)
-        return
-      }
-      const intensity = Math.sin((age / duration) * Math.PI) * 0.7
-      const indices = meshData.regionMap[region]
-      if (!indices) return
+    // Draw trail (fading green)
+    for (const t of trail.current) {
+      const age = elapsed - t.startTime
+      const fade = 1 - age / trailDuration
+      const intensity = fade * fade * 0.9
+      const indices = meshData.regionMap[t.region]
+      if (!indices) continue
       for (const idx of indices) {
-        colors[idx * 3] = colors[idx * 3] * (1 - intensity) + 0.0 * intensity
-        colors[idx * 3 + 1] = colors[idx * 3 + 1] * (1 - intensity) + 1.0 * intensity
-        colors[idx * 3 + 2] = colors[idx * 3 + 2] * (1 - intensity) + 0.78 * intensity
+        colors[idx * 3] = 0.54 * (1 - intensity)
+        colors[idx * 3 + 1] = 0.54 * (1 - intensity) + 0.898 * intensity
+        colors[idx * 3 + 2] = 0.59 * (1 - intensity) + 0.627 * intensity
       }
-    })
-    toRemove.forEach((r) => activeRegions.current.delete(r))
+    }
+
+    // Draw current active region (bright green)
+    const currentRegion = regionOrder.current[regionIndex.current]
+    if (currentRegion) {
+      const indices = meshData.regionMap[currentRegion]
+      if (indices) {
+        const flash = 1.0
+        for (const idx of indices) {
+          colors[idx * 3] = 0.54 * (1 - flash)
+          colors[idx * 3 + 1] = 0.54 * (1 - flash) + 0.898 * flash
+          colors[idx * 3 + 2] = 0.59 * (1 - flash) + 0.627 * flash
+        }
+      }
+    }
 
     colorAttr.needsUpdate = true
   })
@@ -155,24 +213,26 @@ export default function HeroBrain({ meshData }: HeroBrainProps) {
   }
 
   return (
-    <Canvas
-      camera={{ position: [0, 0, 220], fov: 50 }}
-      style={{ background: "transparent", width: "100%", height: "100%" }}
-      aria-label="Interactive 3D brain with synapse pulse animation"
-    >
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[5, 5, 5]} intensity={1.2} color="#ffffff" />
-      <directionalLight position={[-5, 3, -2]} intensity={0.6} color="#00e5a0" />
-      <directionalLight position={[0, -3, 5]} intensity={0.3} color="#00b4d8" />
-      <Environment preset="night" />
-      <SynapsingBrain meshData={meshData} />
-      <HeroParticles />
-      <OrbitControls
-        autoRotate
-        autoRotateSpeed={0.4}
-        enableZoom={false}
-        enablePan={false}
-      />
-    </Canvas>
+    <CanvasErrorBoundary>
+      <Canvas
+        camera={{ position: [0, 0, 220], fov: 50 }}
+        style={{ background: "transparent", width: "100%", height: "100%" }}
+        aria-label="Interactive 3D brain with synapse pulse animation"
+      >
+        <ambientLight intensity={0.3} />
+        <directionalLight position={[5, 5, 5]} intensity={1.2} color="#ffffff" />
+        <directionalLight position={[-5, 3, -2]} intensity={0.6} color="#00e5a0" />
+        <directionalLight position={[0, -3, 5]} intensity={0.3} color="#00b4d8" />
+        <Environment preset="night" />
+        <SynapsingBrain meshData={meshData} />
+        <HeroParticles />
+        <OrbitControls
+          autoRotate
+          autoRotateSpeed={0.4}
+          enableZoom={false}
+          enablePan={false}
+        />
+      </Canvas>
+    </CanvasErrorBoundary>
   )
 }

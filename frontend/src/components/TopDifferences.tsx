@@ -105,35 +105,60 @@ export default function TopDifferences({ regions }: TopDifferencesProps) {
           })}
         </div>
 
-        {/* Labels + expandable design implications */}
+        {/* Use CSS grid so each sub-row is always aligned across all columns */}
         <div style={{
-          display: "flex",
-          gap: "12px",
+          display: "grid",
+          gridTemplateColumns: `repeat(${sorted.length}, 1fr)`,
+          gap: "0 12px",
           marginTop: "12px",
         }}>
+          {/* Row 1: Region names */}
+          {sorted.map((region) => (
+            <div
+              key={`name-${region.name}`}
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: "#e8e6e3",
+                lineHeight: 1.3,
+                textAlign: "center",
+                paddingBottom: "4px",
+              }}
+            >
+              {region.displayName}
+            </div>
+          ))}
+
+          {/* Row 2: Delta percentages */}
+          {sorted.map((region) => {
+            const accentColor = region.delta > 0 ? "#00b4d8" : "#00e5a0"
+            return (
+              <div
+                key={`delta-${region.name}`}
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: accentColor,
+                  textAlign: "center",
+                  paddingBottom: "8px",
+                }}
+              >
+                {region.delta > 0 ? "+" : ""}{(region.delta * 100).toFixed(0)}%
+              </div>
+            )
+          })}
+
+          {/* Row 3: Dropdown pills */}
           {sorted.map((region) => {
             const isExpanded = expanded === region.name
             const accentColor = region.delta > 0 ? "#00b4d8" : "#00e5a0"
             const hasImplication = !!region.designImplication
-
             return (
               <div
-                key={region.name}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                }}
+                key={`pill-${region.name}`}
+                style={{ textAlign: "center" }}
               >
-                <div style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                  color: "#e8e6e3",
-                  lineHeight: 1.3,
-                  marginBottom: "2px",
-                }}>
-                  {region.displayName}
-                </div>
-                {/* Function text, clickable if has design implication */}
                 <div
                   onClick={hasImplication ? () => setExpanded(isExpanded ? null : region.name) : undefined}
                   style={{
@@ -141,25 +166,20 @@ export default function TopDifferences({ regions }: TopDifferencesProps) {
                     fontSize: "10px",
                     color: hasImplication ? accentColor : "#8a8a9a",
                     lineHeight: 1.3,
-                    marginBottom: "4px",
                     cursor: hasImplication ? "pointer" : "default",
-                    transition: "color 200ms ease-out",
+                    transition: "all 200ms ease-out",
+                    padding: "4px 6px",
+                    borderRadius: "4px",
+                    background: isExpanded ? `${accentColor}15` : hasImplication ? `${accentColor}08` : "transparent",
+                    border: hasImplication ? `1px solid ${isExpanded ? accentColor + "40" : accentColor + "20"}` : "1px solid transparent",
                   }}
                 >
                   {region.function}
                   {hasImplication && (
-                    <span style={{ marginLeft: "4px", fontSize: "8px", opacity: 0.6 }}>
+                    <span style={{ marginLeft: "4px", fontSize: "9px" }}>
                       {isExpanded ? "▲" : "▼"}
                     </span>
                   )}
-                </div>
-                <div style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: accentColor,
-                }}>
-                  {region.delta > 0 ? "+" : ""}{(region.delta * 100).toFixed(0)}%
                 </div>
               </div>
             )

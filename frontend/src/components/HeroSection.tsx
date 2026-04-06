@@ -55,8 +55,29 @@ export default function HeroSection({ meshData }: HeroSectionProps) {
         margin: "0 auto",
         alignItems: "center",
       }}>
-        {/* Left: copy */}
-        <div style={{ zIndex: 1 }}>
+        {/* Left: copy in glass card */}
+        <div style={{
+          zIndex: 1,
+          background: "rgba(12, 12, 20, 0.6)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(0, 229, 160, 0.12)",
+          borderRadius: "12px",
+          padding: "40px 36px",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04)",
+          position: "relative",
+          overflow: "hidden",
+        }}>
+          {/* Subtle top-edge highlight */}
+          <div style={{
+            position: "absolute",
+            top: 0,
+            left: "10%",
+            right: "10%",
+            height: "1px",
+            background: "linear-gradient(90deg, transparent, rgba(0,229,160,0.3), transparent)",
+          }} />
+
           <div style={{
             fontFamily: "var(--font-mono)",
             fontSize: "11px",
@@ -91,7 +112,7 @@ export default function HeroSection({ meshData }: HeroSectionProps) {
             marginBottom: "12px",
           }}>
             Upload two designs and see how the brain responds. Powered by Meta's
-            TRIBE v2 fMRI prediction model and Google's Gemma 4.
+            TRIBE v2 fMRI prediction model and Google's Gemini 2.5 Flash.
           </p>
 
           <p style={{
@@ -143,7 +164,7 @@ export default function HeroSection({ meshData }: HeroSectionProps) {
           }}>
             {[
               { label: "TRIBE v2", sub: "Meta AI" },
-              { label: "Gemma 4", sub: "Google" },
+              { label: "Gemini 2.5 Flash", sub: "Google" },
               { label: "20,484", sub: "cortical points" },
             ].map((badge) => (
               <div key={badge.label}>

@@ -117,6 +117,10 @@ REGION_FUNCTIONS = {
         "Middle Occipital Sulcus",
         "Processes visual contours and shape boundaries",
     ),
+    "S_oc-temp_lat": (
+        "Lateral Occipitotemporal Sulcus",
+        "Categorizes visual objects and scenes by type",
+    ),
     "S_oc-temp_med_and_Lingual": (
         "Occipitotemporal Sulcus",
         "Connects visual processing to word and face recognition",

@@ -11,6 +11,7 @@ import AnalysisSection from "@/components/AnalysisSection"
 import ChatAdvisor from "@/components/ChatAdvisor"
 import ChatFab from "@/components/ChatFab"
 import RegionDetail from "@/components/RegionDetail"
+import UploadZone from "@/components/UploadZone"
 
 export default function Home() {
   const [meshData, setMeshData] = useState<MeshData | null>(null)
@@ -69,29 +70,42 @@ export default function Home() {
     }
   }, [])
 
+  const handleTryOwn = useCallback(() => {
+    setActivePreset("__custom__")
+    setComparison(null)
+    setFileA(null)
+    setFileB(null)
+    if (previewA) URL.revokeObjectURL(previewA)
+    if (previewB) URL.revokeObjectURL(previewB)
+    setPreviewA(null)
+    setPreviewB(null)
+    setError(null)
+    setPageState("initial")
+  }, [previewA, previewB])
+
   const handleFileA = useCallback((file: File | null) => {
     setFileA(file)
     if (previewA) URL.revokeObjectURL(previewA)
     if (file) {
       setPreviewA(URL.createObjectURL(file))
-      setActivePreset(null)
+      if (activePreset !== "__custom__") setActivePreset("__custom__")
       setPageState("uploading")
     } else {
       setPreviewA(null)
     }
-  }, [previewA])
+  }, [previewA, activePreset])
 
   const handleFileB = useCallback((file: File | null) => {
     setFileB(file)
     if (previewB) URL.revokeObjectURL(previewB)
     if (file) {
       setPreviewB(URL.createObjectURL(file))
-      setActivePreset(null)
+      if (activePreset !== "__custom__") setActivePreset("__custom__")
       setPageState("uploading")
     } else {
       setPreviewB(null)
     }
-  }, [previewB])
+  }, [previewB, activePreset])
 
   const handleCompare = useCallback(async () => {
     if (!fileA || !fileB) { setError("Please upload both images"); return }
@@ -139,47 +153,119 @@ export default function Home() {
         }}
       >
         <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-          <PresetTabs activePreset={activePreset} onSelect={handlePresetSelect} />
+          <PresetTabs activePreset={activePreset} onSelect={handlePresetSelect} onTryOwn={handleTryOwn} />
 
           <div className="neon-line" style={{ marginTop: "20px", marginBottom: "20px" }} />
 
-          <div className="tool-grid" style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "20px",
-          }}>
-            <ImageColumn
-              side="A"
-              file={fileA}
-              preview={previewA}
-              comparison={comparison}
-              meshData={meshData}
-              scanning={scanning}
-              isScanning={isScanning}
-              onFileSelect={handleFileA}
-              onRegionClick={setSelectedRegion}
-            />
-            <ImageColumn
-              side="B"
-              file={fileB}
-              preview={previewB}
-              comparison={comparison}
-              meshData={meshData}
-              scanning={scanning}
-              isScanning={isScanning}
-              onFileSelect={handleFileB}
-              onRegionClick={setSelectedRegion}
-            />
-          </div>
-
-          {(fileA || fileB) && (
-            <div style={{ display: "flex", justifyContent: "center", marginTop: "16px" }}>
-              <CompareButton
-                onClick={handleCompare}
-                isLoading={isScanning}
-                disabled={!canCompare}
-                onPresetFallback={() => handlePresetSelect(PRESETS[0].id)}
-              />
+          {activePreset === "__custom__" ? (
+            /* === TRY YOUR OWN MODE === */
+            <div>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px",
+              }}>
+                <div>
+                  <div style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#00e5a0",
+                    marginBottom: "6px",
+                  }}>
+                    Image A
+                  </div>
+                  {fileA && previewA ? (
+                    <div style={{ position: "relative", borderRadius: "4px", overflow: "hidden", border: "1px solid #00e5a033" }}>
+                      <img src={previewA} alt="Image A" style={{ width: "100%", aspectRatio: "16/10", objectFit: "cover", display: "block" }} />
+                      <button
+                        onClick={() => handleFileA(null)}
+                        style={{
+                          position: "absolute", top: "8px", right: "8px",
+                          background: "rgba(10,10,15,0.8)", border: "1px solid rgba(255,107,107,0.3)",
+                          borderRadius: "3px", color: "#ff6b6b", fontSize: "11px", padding: "2px 8px",
+                          cursor: "pointer", fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <UploadZone label="image A" file={fileA} onFileSelect={handleFileA} />
+                  )}
+                </div>
+                <div>
+                  <div style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#00b4d8",
+                    marginBottom: "6px",
+                  }}>
+                    Image B
+                  </div>
+                  {fileB && previewB ? (
+                    <div style={{ position: "relative", borderRadius: "4px", overflow: "hidden", border: "1px solid #00b4d833" }}>
+                      <img src={previewB} alt="Image B" style={{ width: "100%", aspectRatio: "16/10", objectFit: "cover", display: "block" }} />
+                      <button
+                        onClick={() => handleFileB(null)}
+                        style={{
+                          position: "absolute", top: "8px", right: "8px",
+                          background: "rgba(10,10,15,0.8)", border: "1px solid rgba(255,107,107,0.3)",
+                          borderRadius: "3px", color: "#ff6b6b", fontSize: "11px", padding: "2px 8px",
+                          cursor: "pointer", fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <UploadZone label="image B" file={fileB} onFileSelect={handleFileB} />
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
+                <CompareButton
+                  onClick={handleCompare}
+                  isLoading={isScanning}
+                  disabled={!canCompare}
+                  onPresetFallback={() => handlePresetSelect(PRESETS[0].id)}
+                />
+              </div>
+            </div>
+          ) : (
+            /* === PRESET MODE === */
+            <div>
+              <div className="tool-grid" style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px",
+              }}>
+                <ImageColumn
+                  side="A"
+                  file={fileA}
+                  preview={previewA}
+                  comparison={comparison}
+                  meshData={meshData}
+                  scanning={scanning}
+                  isScanning={isScanning}
+                  onFileSelect={handleFileA}
+                  onRegionClick={setSelectedRegion}
+                />
+                <ImageColumn
+                  side="B"
+                  file={fileB}
+                  preview={previewB}
+                  comparison={comparison}
+                  meshData={meshData}
+                  scanning={scanning}
+                  isScanning={isScanning}
+                  onFileSelect={handleFileB}
+                  onRegionClick={setSelectedRegion}
+                />
+              </div>
             </div>
           )}
 

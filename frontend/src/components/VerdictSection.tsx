@@ -37,11 +37,10 @@ export default function VerdictSection({ comparison }: VerdictSectionProps) {
 
   return (
     <div style={{
-      minHeight: "50vh",
       display: "flex",
       flexDirection: "column",
       justifyContent: "center",
-      padding: "64px 0",
+      padding: "24px 0",
       position: "relative",
     }}>
       {/* Subtle background glow */}
@@ -83,7 +82,7 @@ export default function VerdictSection({ comparison }: VerdictSectionProps) {
         borderLeft: "3px solid #00e5a0",
         paddingLeft: "32px",
         boxShadow: "-8px 0 30px rgba(0,229,160,0.08)",
-        marginBottom: "40px",
+        marginBottom: "20px",
       }}>
         <div style={{
           fontFamily: "var(--font-heading)",
@@ -110,60 +109,84 @@ export default function VerdictSection({ comparison }: VerdictSectionProps) {
         )}
       </div>
 
-      {/* Winner reason */}
-      <p style={{
-        fontFamily: "var(--font-sans)",
-        fontSize: "18px",
-        color: "#e8e6e3",
-        lineHeight: 1.7,
-        maxWidth: "640px",
-        marginBottom: "40px",
+      {/* Winner reason + strongest difference in equal columns */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "32px",
+        alignItems: "center",
       }}>
-        {detailed?.winner_reason || comparison.summary || "This design triggers stronger neural activation across key brain regions."}
-      </p>
-
-      {/* Key advantage callout */}
-      {topRegion && (
         <div style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "16px",
-          padding: "20px 28px",
-          background: "#12121a",
-          border: "1px solid #1e1e2e",
-          borderRadius: "4px",
-          maxWidth: "fit-content",
+          background: "rgba(12, 12, 20, 0.6)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(0, 229, 160, 0.12)",
+          borderRadius: "12px",
+          padding: "24px 28px",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04)",
+          position: "relative",
+          overflow: "hidden",
         }}>
           <div style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "28px",
-            fontWeight: 600,
-            color: "#00e5a0",
-            lineHeight: 1,
+            position: "absolute",
+            top: 0,
+            left: "10%",
+            right: "10%",
+            height: "1px",
+            background: "linear-gradient(90deg, transparent, rgba(0,229,160,0.3), transparent)",
+          }} />
+          <p style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "18px",
+            color: "#e8e6e3",
+            lineHeight: 1.7,
+            margin: 0,
           }}>
-            {topDelta}%
-          </div>
-          <div>
+            {detailed?.winner_reason || comparison.summary || "This design triggers stronger neural activation across key brain regions."}
+          </p>
+        </div>
+
+        {topRegion && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            padding: "20px 28px",
+            background: "#12121a",
+            border: "1px solid #1e1e2e",
+            borderRadius: "4px",
+          }}>
             <div style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#8a8a9a",
-              marginBottom: "4px",
+              fontSize: "28px",
+              fontWeight: 600,
+              color: "#00e5a0",
+              lineHeight: 1,
             }}>
-              Strongest Difference
+              {topDelta}%
             </div>
-            <div style={{
-              fontFamily: "var(--font-sans)",
-              fontSize: "15px",
-              color: "#e8e6e3",
-            }}>
-              {topRegion.displayName} ({topRegion.function})
+            <div>
+              <div style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "#8a8a9a",
+                marginBottom: "4px",
+              }}>
+                Strongest Difference
+              </div>
+              <div style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "15px",
+                color: "#e8e6e3",
+              }}>
+                {topRegion.displayName} ({topRegion.function})
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
