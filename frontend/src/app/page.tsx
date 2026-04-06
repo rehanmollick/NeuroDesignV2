@@ -232,8 +232,8 @@ export default function Home() {
           <a href="https://github.com/facebookresearch/tribev2" target="_blank" rel="noopener noreferrer"
             style={{ color: "#8a8a9a", textDecoration: "none" }}>Meta TRIBE v2</a>
           {" "}and{" "}
-          <a href="https://ai.google.dev/gemma" target="_blank" rel="noopener noreferrer"
-            style={{ color: "#8a8a9a", textDecoration: "none" }}>Google Gemma 4</a>
+          <a href="https://ai.google.dev/gemini-api" target="_blank" rel="noopener noreferrer"
+            style={{ color: "#8a8a9a", textDecoration: "none" }}>Google Gemini 2.5 Flash</a>
         </p>
       </footer>
 

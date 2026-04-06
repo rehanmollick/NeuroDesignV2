@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { useInView } from "framer-motion"
 import { ComparisonResult } from "@/lib/types"
 
@@ -11,6 +11,7 @@ interface TopDifferencesProps {
 export default function TopDifferences({ regions }: TopDifferencesProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-60px" })
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   const sorted = [...regions]
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
@@ -104,49 +105,104 @@ export default function TopDifferences({ regions }: TopDifferencesProps) {
           })}
         </div>
 
-        {/* Labels */}
+        {/* Labels + expandable design implications */}
         <div style={{
           display: "flex",
           gap: "12px",
           marginTop: "12px",
         }}>
-          {sorted.map((region) => (
-            <div
-              key={region.name}
-              style={{
-                flex: 1,
-                textAlign: "center",
-              }}
-            >
+          {sorted.map((region) => {
+            const isExpanded = expanded === region.name
+            const accentColor = region.delta > 0 ? "#00b4d8" : "#00e5a0"
+            const hasImplication = !!region.designImplication
+
+            return (
+              <div
+                key={region.name}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                  color: "#e8e6e3",
+                  lineHeight: 1.3,
+                  marginBottom: "2px",
+                }}>
+                  {region.displayName}
+                </div>
+                {/* Function text, clickable if has design implication */}
+                <div
+                  onClick={hasImplication ? () => setExpanded(isExpanded ? null : region.name) : undefined}
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "10px",
+                    color: hasImplication ? accentColor : "#8a8a9a",
+                    lineHeight: 1.3,
+                    marginBottom: "4px",
+                    cursor: hasImplication ? "pointer" : "default",
+                    transition: "color 200ms ease-out",
+                  }}
+                >
+                  {region.function}
+                  {hasImplication && (
+                    <span style={{ marginLeft: "4px", fontSize: "8px", opacity: 0.6 }}>
+                      {isExpanded ? "▲" : "▼"}
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: accentColor,
+                }}>
+                  {region.delta > 0 ? "+" : ""}{(region.delta * 100).toFixed(0)}%
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Expanded design implication panel */}
+        {expanded && (() => {
+          const region = sorted.find(r => r.name === expanded)
+          if (!region?.designImplication) return null
+          const accentColor = region.delta > 0 ? "#00b4d8" : "#00e5a0"
+
+          return (
+            <div style={{
+              marginTop: "16px",
+              padding: "20px 24px",
+              background: "#0a0a0f",
+              border: `1px solid ${accentColor}33`,
+              borderTop: `2px solid ${accentColor}`,
+              borderRadius: "0 0 4px 4px",
+              transition: "all 200ms ease-out",
+            }}>
               <div style={{
                 fontFamily: "var(--font-mono)",
-                fontSize: "12px",
-                color: "#e8e6e3",
-                lineHeight: 1.3,
-                marginBottom: "2px",
+                fontSize: "11px",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: accentColor,
+                marginBottom: "8px",
               }}>
-                {region.displayName}
+                What this means for your design
               </div>
               <div style={{
                 fontFamily: "var(--font-sans)",
-                fontSize: "10px",
-                color: "#8a8a9a",
-                lineHeight: 1.3,
-                marginBottom: "4px",
+                fontSize: "14px",
+                color: "#e8e6e3",
+                lineHeight: 1.65,
               }}>
-                {region.function}
-              </div>
-              <div style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "13px",
-                fontWeight: 500,
-                color: region.delta > 0 ? "#00b4d8" : "#00e5a0",
-              }}>
-                {region.delta > 0 ? "+" : ""}{(region.delta * 100).toFixed(0)}%
+                {region.designImplication}
               </div>
             </div>
-          ))}
-        </div>
+          )
+        })()}
 
         {/* Legend */}
         <div style={{

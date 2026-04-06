@@ -4,6 +4,15 @@ export interface MeshData {
   regionMap: Record<string, number[]> // "G_temporal_sup" -> [vertex indices]
 }
 
+export interface CompositeSignal {
+  signal: string // reward, cognitive_load, visual_fluency, social_trust, memory, attention
+  label: string // Human-friendly label
+  value_a: number
+  value_b: number
+  delta: number // B - A
+  interpretation: string
+}
+
 export interface ComparisonResult {
   imageA: { url: string; name: string }
   imageB: { url: string; name: string }
@@ -18,8 +27,11 @@ export interface ComparisonResult {
     activationA: number // Mean activation, [0, 1]
     activationB: number
     delta: number // B - A
+    designImplication?: string // What this means for design decisions
+    composite?: string // Which composite signal this belongs to
   }>
-  summary: string // Gemma explanation (empty for precomputed-only)
+  composites?: CompositeSignal[]
+  summary: string // Gemini explanation
   detailed?: {
     winner?: string
     winner_reason?: string
@@ -27,6 +39,7 @@ export interface ComparisonResult {
     visual_attention?: string
     memory_retention?: string
     recommendations?: string[]
+    _fallback?: boolean
   }
 }
 

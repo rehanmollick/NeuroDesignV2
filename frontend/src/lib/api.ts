@@ -1,12 +1,11 @@
 import { ComparisonResult, PresetComparison, ChatMessage } from "./types"
 
-const API_TIMEOUT = 180000 // 180s — TRIBE v2 inference + Gemma analysis takes ~120-140s
+const API_TIMEOUT = 180000 // 180s — TRIBE v2 inference + Gemini analysis
 
 export const PRESETS: PresetComparison[] = [
   { id: "apple-vs-cluttered", label: "Apple vs Cluttered", file: "apple-vs-cluttered.json" },
   { id: "face-vs-noface", label: "Face vs No Face", file: "face-vs-noface.json" },
   { id: "text-vs-infographic", label: "Text vs Visual", file: "text-heavy-vs-infographic.json" },
-  { id: "clean-vs-ai", label: "Clean vs AI Cluttered", file: "clean-vs-ai-cluttered.json" },
 ]
 
 export async function loadPreset(presetId: string): Promise<ComparisonResult> {
@@ -46,7 +45,8 @@ export async function chatWithAdvisor(
   regions: ComparisonResult["regions"],
   summary: string,
   history: ChatMessage[],
-  detailed?: ComparisonResult["detailed"]
+  detailed?: ComparisonResult["detailed"],
+  composites?: ComparisonResult["composites"]
 ): Promise<string> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 90000)
@@ -57,7 +57,7 @@ export async function chatWithAdvisor(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, regions, summary, history, detailed }),
+        body: JSON.stringify({ message, regions, summary, history, detailed, composites }),
         signal: controller.signal,
       }
     )

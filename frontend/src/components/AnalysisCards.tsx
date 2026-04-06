@@ -170,36 +170,22 @@ function InsightCard({ title, subtitle, content, accentColor, align, icon, delay
   )
 }
 
+// Signal colors for the composite score card
+const SIGNAL_COLORS: Record<string, string> = {
+  reward: "#00e5a0",
+  cognitive_load: "#ff6b6b",
+  visual_fluency: "#00b4d8",
+  social_trust: "#f5a623",
+  memory: "#c084fc",
+  attention: "#38bdf8",
+}
+
 function NeuralScoreCard({ comparison }: { comparison: ComparisonResult }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-40px" })
 
-  // Compute scores from region data
-  const avgA = comparison.regions.reduce((sum, r) => sum + r.activationA, 0) / comparison.regions.length
-  const avgB = comparison.regions.reduce((sum, r) => sum + r.activationB, 0) / comparison.regions.length
-
-  // Categorize regions into cognitive groups
-  const emotionRegions = comparison.regions.filter(r =>
-    r.function.toLowerCase().includes("emotion") || r.function.toLowerCase().includes("face") || r.function.toLowerCase().includes("reward")
-  )
-  const attentionRegions = comparison.regions.filter(r =>
-    r.function.toLowerCase().includes("attention") || r.function.toLowerCase().includes("visual") || r.function.toLowerCase().includes("spatial")
-  )
-  const memoryRegions = comparison.regions.filter(r =>
-    r.function.toLowerCase().includes("memory") || r.function.toLowerCase().includes("language") || r.function.toLowerCase().includes("semantic")
-  )
-
-  const getScore = (regions: typeof comparison.regions, key: "activationA" | "activationB") => {
-    if (regions.length === 0) return 0
-    return regions.reduce((s, r) => s + r[key], 0) / regions.length
-  }
-
-  const metrics = [
-    { label: "Overall Activation", scoreA: avgA, scoreB: avgB, color: "#00e5a0" },
-    { label: "Emotional Response", scoreA: getScore(emotionRegions, "activationA"), scoreB: getScore(emotionRegions, "activationB"), color: "#ff6b6b" },
-    { label: "Visual Attention", scoreA: getScore(attentionRegions, "activationA"), scoreB: getScore(attentionRegions, "activationB"), color: "#00b4d8" },
-    { label: "Memory Encoding", scoreA: getScore(memoryRegions, "activationA"), scoreB: getScore(memoryRegions, "activationB"), color: "#f5a623" },
-  ]
+  const composites = comparison.composites || []
+  if (composites.length === 0) return null
 
   return (
     <motion.div
@@ -225,7 +211,7 @@ function NeuralScoreCard({ comparison }: { comparison: ComparisonResult }) {
         marginBottom: "8px",
         textAlign: "center",
       }}>
-        Neural Score Breakdown
+        Composite Brain Signals
       </div>
       <div style={{
         fontFamily: "var(--font-sans)",
@@ -234,7 +220,7 @@ function NeuralScoreCard({ comparison }: { comparison: ComparisonResult }) {
         textAlign: "center",
         marginBottom: "32px",
       }}>
-        Comparing brain response intensity across cognitive dimensions
+        6 high-level brain patterns derived from region groups
       </div>
 
       {/* Legend */}
@@ -258,35 +244,46 @@ function NeuralScoreCard({ comparison }: { comparison: ComparisonResult }) {
         </div>
       </div>
 
-      {/* Metric bars */}
+      {/* Composite signal bars */}
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        {metrics.map((m) => {
-          const maxScore = Math.max(m.scoreA, m.scoreB, 0.01)
-          const pctA = (m.scoreA / maxScore) * 100
-          const pctB = (m.scoreB / maxScore) * 100
+        {composites.map((c) => {
+          const maxScore = Math.max(c.value_a, c.value_b, 0.01)
+          const pctA = (c.value_a / maxScore) * 100
+          const pctB = (c.value_b / maxScore) * 100
+          const mag = Math.abs(c.delta) * 100
 
           return (
-            <div key={m.label}>
+            <div key={c.signal}>
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "8px",
+                marginBottom: "4px",
               }}>
                 <span style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: "14px",
                   color: "#e8e6e3",
                 }}>
-                  {m.label}
+                  {c.label}
                 </span>
                 <span style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: "12px",
-                  color: m.scoreA > m.scoreB ? "#00e5a0" : "#00b4d8",
+                  color: mag < 2 ? "#8a8a9a" : c.delta > 0 ? "#00b4d8" : "#00e5a0",
                 }}>
-                  {m.scoreA > m.scoreB ? "A" : "B"} +{(Math.abs(m.scoreA - m.scoreB) * 100).toFixed(0)}%
+                  {mag < 2 ? "~" : c.delta > 0 ? "B" : "A"} {mag < 2 ? "even" : `+${mag.toFixed(0)}%`}
                 </span>
+              </div>
+              {/* Interpretation */}
+              <div style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "11px",
+                color: "#8a8a9a",
+                marginBottom: "8px",
+                lineHeight: 1.4,
+              }}>
+                {c.interpretation}
               </div>
               {/* A bar */}
               <div style={{ display: "flex", gap: "4px", marginBottom: "4px" }}>
