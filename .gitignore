@@ -1,0 +1,8 @@
+backend/.env
+backend/__pycache__/
+.gstack/
+*.md
+!README.md
+!pitch.md
+!fillThese.md
+!judging.md

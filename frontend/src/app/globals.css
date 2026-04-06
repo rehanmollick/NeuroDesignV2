@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface-hover: #1a1a28;
+  --border: #1e1e2e;
+  --text-primary: #e8e6e3;
+  --text-secondary: #8a8a9a;
+  --accent: #00e5a0;
+  --accent-secondary: #00b4d8;
+  --danger: #ff6b6b;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Scanning sweep across brains */
+@keyframes scanSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* Scroll indicator pulse */
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+/* Subtle glow pulse for live indicators */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,229,160,0.2); }
+  50% { box-shadow: 0 0 16px rgba(0,229,160,0.4); }
+}
+
+/* Thinking dots animation */
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0.4);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Chat FAB pulse */
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(0,229,160,0); }
+}
+
+/* Hide scrollbar for preset tabs */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Brain entrance */
+@keyframes brainEntrance {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.brain-entrance {
+  animation: brainEntrance 400ms ease-out both;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 16px;
+  top: 16px;
+}
+
+/* Grid texture on tool section */
+#tool {
+  background-image:
+    linear-gradient(rgba(30, 30, 46, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 30, 46, 0.12) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Neon glow accent line */
+.neon-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,229,160,0.4), rgba(0,180,216,0.3), transparent);
+}
+
+/* Section connector — vertical neon line between sections */
+.section-connector {
+  width: 1px;
+  height: 80px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, transparent, rgba(0,229,160,0.4), transparent);
+  box-shadow: 0 0 8px rgba(0,229,160,0.15);
+}
+
+/* Chat input focus */
+.chat-input:focus {
+  border-color: rgba(0,229,160,0.3) !important;
+  box-shadow: 0 0 12px rgba(0,229,160,0.06);
+}
+
+/* Mobile responsive */
+@media (max-width: 767px) {
+  .brain-grid,
+  .tool-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .analysis-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  #tool {
+    padding: 20px !important;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
