@@ -17,6 +17,7 @@ image = (
         "opencv-python-headless",
         "nilearn",
         "nibabel",
+        "google-genai",
     )
     .run_commands(
         "pip install git+https://github.com/facebookresearch/tribev2.git"
@@ -24,7 +25,9 @@ image = (
     # Bake backend source files into image at /app
     .add_local_file("inference.py", "/app/inference.py")
     .add_local_file("regions.py", "/app/regions.py")
-    .add_local_file("gemma.py", "/app/gemma.py")
+    .add_local_file("composites.py", "/app/composites.py")
+    .add_local_file("neuro_knowledge.py", "/app/neuro_knowledge.py")
+    .add_local_file("gemini.py", "/app/gemini.py")
     # Bake mesh.json (needed for region map)
     .add_local_file("../frontend/public/data/mesh.json", "/data/mesh.json")
 )
@@ -40,24 +43,21 @@ app = modal.App("neurodesign", image=image)
 )
 @modal.asgi_app()
 def fastapi_app():
-    import os
     import io
     import sys
     import asyncio
     import numpy as np
-    from concurrent.futures import ThreadPoolExecutor
     from fastapi import FastAPI, UploadFile, File, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from PIL import Image
-
-    executor = ThreadPoolExecutor(max_workers=4)
 
     if "/app" not in sys.path:
         sys.path.insert(0, "/app")
 
     from inference import predict, normalize_joint
     from regions import load_region_map, aggregate_regions
-    from gemma import explain, explain_detailed, chat as gemma_chat
+    from composites import compute_composites
+    from gemini import explain as gemini_explain, chat as gemini_chat
 
     api = FastAPI()
 
@@ -91,12 +91,16 @@ def fastapi_app():
         if model is None:
             raise HTTPException(status_code=503, detail="Model not loaded")
 
+        # Read raw bytes, then open as PIL
         try:
-            img_a = Image.open(io.BytesIO(await imageA.read())).convert("RGB")
-            img_b = Image.open(io.BytesIO(await imageB.read())).convert("RGB")
+            bytes_a = await imageA.read()
+            bytes_b = await imageB.read()
+            img_a = Image.open(io.BytesIO(bytes_a)).convert("RGB")
+            img_b = Image.open(io.BytesIO(bytes_b)).convert("RGB")
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid image files")
 
+        # TRIBE v2 inference
         try:
             raw_a = predict(img_a, model)
             raw_b = predict(img_b, model)
@@ -104,15 +108,22 @@ def fastapi_app():
             print(f"Inference error: {e}")
             raise HTTPException(status_code=500, detail="Inference failed")
 
+        # Normalize and aggregate ALL regions
         norm_a, norm_b = normalize_joint(raw_a, raw_b)
         activations = np.stack([norm_a, norm_b], axis=0)
-        regions = aggregate_regions(activations, region_map)
+        all_regions = aggregate_regions(activations, region_map)
 
-        # Run both Gemma calls in parallel
+        # Compute composite brain signals from full region list
+        composites = compute_composites(all_regions)
+
+        # Single Gemini call with images + composites + knowledge base
         loop = asyncio.get_event_loop()
-        summary_fut = loop.run_in_executor(executor, explain, regions)
-        detailed_fut = loop.run_in_executor(executor, explain_detailed, regions)
-        summary, detailed = await asyncio.gather(summary_fut, detailed_fut)
+        detailed = await loop.run_in_executor(
+            None, gemini_explain, all_regions, composites, img_a, img_b
+        )
+
+        # Filter to top 20 regions for the response payload
+        top_regions = all_regions[:20]
 
         return {
             "imageA": {"url": "", "name": imageA.filename or "Image A"},
@@ -121,14 +132,16 @@ def fastapi_app():
                 "imageA": norm_a.tolist(),
                 "imageB": norm_b.tolist(),
             },
-            "regions": regions,
-            "summary": summary,
+            "regions": top_regions,
+            "composites": composites,
+            "summary": detailed.get("winner_reason", ""),
             "detailed": detailed,
         }
 
     @api.post("/chat")
     async def chat_endpoint(body: dict):
         regions = body.get("regions", [])
+        composites = body.get("composites", [])
         summary = body.get("summary", "")
         message = body.get("message", "")
         history = body.get("history", [])
@@ -137,7 +150,10 @@ def fastapi_app():
         if not message:
             raise HTTPException(status_code=400, detail="Message required")
 
-        response = gemma_chat(regions, summary, message, history, detailed)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None, gemini_chat, regions, composites, summary, message, history, detailed
+        )
         if not response:
             raise HTTPException(status_code=503, detail="Chat unavailable")
 
