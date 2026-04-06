@@ -15,11 +15,21 @@ export default function VerdictSection({ comparison }: VerdictSectionProps) {
     ? comparison.imageB.name
     : null
 
-  // Fallback: determine winner from average activation
-  const avgA = comparison.regions.reduce((sum, r) => sum + r.activationA, 0) / comparison.regions.length
-  const avgB = comparison.regions.reduce((sum, r) => sum + r.activationB, 0) / comparison.regions.length
-  const fallbackWinner = avgA > avgB ? comparison.imageA.name : comparison.imageB.name
-  const displayWinner = winner === "tie" ? "TIE" : winnerName || fallbackWinner
+  // Fallback: use composite signals (reward 2x, attention 1x, memory 1x)
+  let fallbackWinner: string | null = null
+  if (!winnerName && comparison.composites?.length) {
+    const find = (s: string) => comparison.composites!.find(c => c.signal === s)
+    const reward = find("reward")
+    const attention = find("attention")
+    const memory = find("memory")
+    if (reward) {
+      const scoreA = reward.value_a * 2 + (attention?.value_a ?? 0) + (memory?.value_a ?? 0)
+      const scoreB = reward.value_b * 2 + (attention?.value_b ?? 0) + (memory?.value_b ?? 0)
+      const margin = Math.abs(scoreA - scoreB) / Math.max(scoreA, scoreB, 0.01)
+      fallbackWinner = margin < 0.05 ? "TIE" : scoreA > scoreB ? comparison.imageA.name : comparison.imageB.name
+    }
+  }
+  const displayWinner = winner === "tie" ? "TIE" : winnerName || fallbackWinner || "TIE"
 
   // Top region difference for the "key advantage" callout
   const topRegion = [...comparison.regions].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0]
