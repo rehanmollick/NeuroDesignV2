@@ -119,21 +119,28 @@ Respond in EXACTLY this JSON format (no markdown, no code fences, raw JSON):
 Be specific. Reference actual brain signals. Use plain language, no jargon."""
 
     # Build multimodal content parts
+    try:
+        from google.genai import types
+    except ImportError:
+        types = None
+
     parts = []
 
-    if image_a is not None and image_b is not None:
+    if image_a is not None and image_b is not None and types:
         try:
-            from google.genai import types
             bytes_a = _resize_for_gemini(image_a)
             bytes_b = _resize_for_gemini(image_b)
-            parts.append(types.Part.from_text("Image A:"))
+            parts.append(types.Part.from_text(text="Image A:"))
             parts.append(types.Part.from_bytes(data=bytes_a, mime_type="image/jpeg"))
-            parts.append(types.Part.from_text("Image B:"))
+            parts.append(types.Part.from_text(text="Image B:"))
             parts.append(types.Part.from_bytes(data=bytes_b, mime_type="image/jpeg"))
         except Exception as e:
             print(f"Image encoding error: {e}")
 
-    parts.append({"text": prompt})
+    if types:
+        parts.append(types.Part.from_text(text=prompt))
+    else:
+        parts.append({"text": prompt})
 
     try:
         response = client.models.generate_content(
