@@ -8,7 +8,9 @@ Usage:
     --imageB images/cluttered.png \
     --output frontend/public/data/comparisons/apple-vs-cluttered.json \
     --name-a "Apple.com" \
-    --name-b "Cluttered Site"
+    --name-b "Cluttered Site" \
+    --image-url-a "/images/apple.com.png" \
+    --image-url-b "/images/cluttered-design.png"
 """
 
 import argparse
@@ -27,6 +29,8 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--name-a", default="Image A")
     parser.add_argument("--name-b", default="Image B")
+    parser.add_argument("--image-url-a", default="")
+    parser.add_argument("--image-url-b", default="")
     parser.add_argument("--mesh", default="frontend/public/data/mesh.json")
     args = parser.parse_args()
 
@@ -35,17 +39,18 @@ def main():
 
     from inference import predict, normalize_joint
     from regions import load_region_map, aggregate_regions
-    from gemma import explain
+    from composites import compute_composites
+    from gemini import explain as gemini_explain
 
     # Load model
     print("Loading TRIBE v2...")
-    import tribev2
-    model = tribev2.TRIBEModel.from_pretrained("facebook/tribe-v2")
-    model.eval()
+    from tribev2 import TribeModel
+    model = TribeModel.from_pretrained("facebook/tribev2")
+    print("TRIBE v2 loaded")
 
     # Load images
-    img_a = Image.open(args.imageA)
-    img_b = Image.open(args.imageB)
+    img_a = Image.open(args.imageA).convert("RGB")
+    img_b = Image.open(args.imageB).convert("RGB")
     print(f"Images: {img_a.size} / {img_b.size}")
 
     # Run inference
@@ -55,11 +60,10 @@ def main():
     raw_b = predict(img_b, model)
 
     # Quality check
-    import numpy as np
     corr = np.corrcoef(raw_a, raw_b)[0, 1]
     print(f"Correlation between predictions: {corr:.3f}")
     if corr > 0.95:
-        print("WARNING: High correlation — images may look too similar to TRIBE v2")
+        print("WARNING: High correlation -- images may look too similar to TRIBE v2")
 
     # Normalize
     norm_a, norm_b = normalize_joint(raw_a, raw_b)
@@ -70,23 +74,40 @@ def main():
     if not region_map:
         print("WARNING: No region map found. Regions will be empty.")
 
-    # Aggregate
+    # Aggregate ALL regions (no truncation)
     activations = np.stack([norm_a, norm_b], axis=0)
-    regions = aggregate_regions(activations, region_map)
+    all_regions = aggregate_regions(activations, region_map)
 
-    # Gemma explanation
-    print("Generating explanation...")
-    summary = explain(regions)
+    # Compute composite brain signals
+    composites = compute_composites(all_regions)
+    print(f"Composites: {[c['signal'] for c in composites]}")
+
+    # Gemini multimodal explanation (sends actual images)
+    print("Generating Gemini analysis...")
+    detailed = gemini_explain(all_regions, composites, img_a, img_b)
+
+    if detailed:
+        print(f"Winner: {detailed.get('winner', '?')}")
+        print(f"Reason: {detailed.get('winner_reason', '(none)')[:100]}")
+        if detailed.get("_fallback"):
+            print("WARNING: Used fallback (Gemini unavailable). Set GEMINI_API_KEY.")
+    else:
+        print("WARNING: No analysis generated. Set GEMINI_API_KEY.")
+
+    # Top 20 regions for the response
+    top_regions = all_regions[:20]
 
     result = {
-        "imageA": {"url": "", "name": args.name_a},
-        "imageB": {"url": "", "name": args.name_b},
+        "imageA": {"url": args.image_url_a, "name": args.name_a},
+        "imageB": {"url": args.image_url_b, "name": args.name_b},
         "activations": {
             "imageA": norm_a.tolist(),
             "imageB": norm_b.tolist(),
         },
-        "regions": regions,
-        "summary": summary,
+        "regions": top_regions,
+        "composites": composites,
+        "summary": detailed.get("winner_reason", ""),
+        "detailed": detailed,
     }
 
     out = Path(args.output)
@@ -96,8 +117,9 @@ def main():
 
     size_mb = out.stat().st_size / 1024 / 1024
     print(f"Written: {out} ({size_mb:.1f} MB)")
-    print(f"Regions: {len(regions)}")
-    print(f"Summary: {summary[:100]}..." if summary else "Summary: (empty)")
+    print(f"Regions: {len(top_regions)} (of {len(all_regions)} total)")
+    if detailed.get("winner"):
+        print(f"Verdict: Image {detailed['winner']} wins")
 
 
 if __name__ == "__main__":
