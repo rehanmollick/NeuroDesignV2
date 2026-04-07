@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { MeshData, ComparisonResult, PageState } from "@/lib/types"
-import { loadPreset, compareImages, PRESETS } from "@/lib/api"
+import { loadPreset, compareImages, compareImagesStream, PRESETS } from "@/lib/api"
 import HeroSection from "@/components/HeroSection"
 import PresetTabs from "@/components/PresetTabs"
 import ImageColumn from "@/components/ImageColumn"
@@ -113,15 +113,24 @@ export default function Home() {
     setScanning(true)
     setError(null)
     try {
-      const data = await compareImages(fileA, fileB)
-      const allDeltasSmall = data.regions.every((r) => Math.abs(r.delta) < 0.02)
-      await new Promise((r) => setTimeout(r, 500))
-      setScanning(false)
-      setComparison(data)
-      setPageState("results")
-      if (allDeltasSmall) {
-        setError("These images produce nearly identical brain responses. Try images with different visual content.")
-      }
+      await compareImagesStream(
+        fileA,
+        fileB,
+        // Phase 1: brain data arrives — show heatmaps immediately
+        (partial) => {
+          setScanning(false)
+          setComparison(partial)
+          setPageState("results")
+          const allDeltasSmall = partial.regions.every((r) => Math.abs(r.delta) < 0.02)
+          if (allDeltasSmall) {
+            setError("These images produce nearly identical brain responses. Try images with different visual content.")
+          }
+        },
+        // Phase 2: Gemini analysis arrives — update with verdict
+        (full) => {
+          setComparison(full)
+        },
+      )
     } catch (err) {
       setScanning(false)
       if (err instanceof DOMException && err.name === "AbortError") {

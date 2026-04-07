@@ -40,6 +40,75 @@ export async function compareImages(
   }
 }
 
+/**
+ * Streaming compare: calls /compare-stream SSE endpoint.
+ * onBrain fires as soon as heatmap data is ready (before Gemini).
+ * onAnalysis fires when Gemini verdict arrives.
+ */
+export async function compareImagesStream(
+  imageA: File,
+  imageB: File,
+  onBrain: (partial: ComparisonResult) => void,
+  onAnalysis: (full: ComparisonResult) => void,
+): Promise<void> {
+  const formData = new FormData()
+  formData.append("imageA", imageA)
+  formData.append("imageB", imageB)
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT)
+
+  try {
+    const res = await fetch(
+      process.env.NEXT_PUBLIC_API_URL + "/compare-stream",
+      { method: "POST", body: formData, signal: controller.signal }
+    )
+    if (!res.ok) throw new Error(`API error: ${res.status}`)
+
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    let brainData: Partial<ComparisonResult> = {}
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      // Parse SSE events from buffer
+      const parts = buffer.split("\n\n")
+      buffer = parts.pop() || "" // keep incomplete chunk
+
+      for (const part of parts) {
+        const eventMatch = part.match(/^event:\s*(.+)$/m)
+        const dataMatch = part.match(/^data:\s*(.+)$/m)
+        if (!eventMatch || !dataMatch) continue
+
+        const eventType = eventMatch[1]
+        const data = JSON.parse(dataMatch[1])
+
+        if (eventType === "brain") {
+          brainData = {
+            ...data,
+            summary: "",
+            detailed: undefined,
+          }
+          onBrain(brainData as ComparisonResult)
+        } else if (eventType === "analysis") {
+          const full: ComparisonResult = {
+            ...(brainData as ComparisonResult),
+            summary: data.summary,
+            detailed: data.detailed,
+          }
+          onAnalysis(full)
+        }
+      }
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function chatWithAdvisor(
   message: string,
   regions: ComparisonResult["regions"],

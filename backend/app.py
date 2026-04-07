@@ -45,10 +45,13 @@ app = modal.App("neurodesign", image=image)
 def fastapi_app():
     import io
     import sys
+    import json
     import asyncio
     import numpy as np
+    from concurrent.futures import ThreadPoolExecutor
     from fastapi import FastAPI, UploadFile, File, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse
     from PIL import Image
 
     if "/app" not in sys.path:
@@ -100,10 +103,14 @@ def fastapi_app():
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid image files")
 
-        # TRIBE v2 inference
+        # TRIBE v2 inference — run both in parallel via threads
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         try:
-            raw_a = predict(img_a, model)
-            raw_b = predict(img_b, model)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                fut_a = pool.submit(predict, img_a, model)
+                fut_b = pool.submit(predict, img_b, model)
+                raw_a = fut_a.result()
+                raw_b = fut_b.result()
         except Exception as e:
             print(f"Inference error: {e}")
             raise HTTPException(status_code=500, detail="Inference failed")
@@ -137,6 +144,79 @@ def fastapi_app():
             "summary": detailed.get("winner_reason", ""),
             "detailed": detailed,
         }
+
+    @api.post("/compare-stream")
+    async def compare_stream(
+        imageA: UploadFile = File(...),
+        imageB: UploadFile = File(...),
+    ):
+        """
+        SSE streaming compare: sends brain data first, then Gemini analysis.
+        Event 1: "brain" — activations, regions, composites (renders heatmaps)
+        Event 2: "analysis" — Gemini verdict + detailed breakdown
+        """
+        if model is None:
+            raise HTTPException(status_code=503, detail="Model not loaded")
+
+        try:
+            bytes_a = await imageA.read()
+            bytes_b = await imageB.read()
+            img_a = Image.open(io.BytesIO(bytes_a)).convert("RGB")
+            img_b = Image.open(io.BytesIO(bytes_b)).convert("RGB")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image files")
+
+        name_a = imageA.filename or "Image A"
+        name_b = imageB.filename or "Image B"
+
+        async def event_stream():
+            # Phase 1: parallel TRIBE v2 inference
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                fut_a = pool.submit(predict, img_a, model)
+                fut_b = pool.submit(predict, img_b, model)
+                raw_a = await loop.run_in_executor(None, fut_a.result)
+                raw_b = await loop.run_in_executor(None, fut_b.result)
+
+            norm_a, norm_b = normalize_joint(raw_a, raw_b)
+            activations_arr = np.stack([norm_a, norm_b], axis=0)
+            all_regions = aggregate_regions(activations_arr, region_map)
+            composites = compute_composites(all_regions)
+            top_regions = all_regions[:20]
+
+            # Send brain data immediately
+            brain_payload = {
+                "imageA": {"url": "", "name": name_a},
+                "imageB": {"url": "", "name": name_b},
+                "activations": {
+                    "imageA": norm_a.tolist(),
+                    "imageB": norm_b.tolist(),
+                },
+                "regions": top_regions,
+                "composites": composites,
+            }
+            yield f"event: brain\ndata: {json.dumps(brain_payload)}\n\n"
+
+            # Phase 2: Gemini analysis (runs while user sees heatmaps)
+            detailed = await loop.run_in_executor(
+                None, gemini_explain, all_regions, composites, img_a, img_b
+            )
+            analysis_payload = {
+                "summary": detailed.get("winner_reason", ""),
+                "detailed": detailed,
+            }
+            yield f"event: analysis\ndata: {json.dumps(analysis_payload)}\n\n"
+
+            yield f"event: done\ndata: {{}}\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @api.post("/chat")
     async def chat_endpoint(body: dict):
