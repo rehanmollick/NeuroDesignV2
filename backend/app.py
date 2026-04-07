@@ -103,14 +103,10 @@ def fastapi_app():
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid image files")
 
-        # TRIBE v2 inference — run both in parallel via threads
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        # TRIBE v2 inference — sequential (model is not thread-safe)
         try:
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                fut_a = pool.submit(predict, img_a, model)
-                fut_b = pool.submit(predict, img_b, model)
-                raw_a = fut_a.result()
-                raw_b = fut_b.result()
+            raw_a = predict(img_a, model)
+            raw_b = predict(img_b, model)
         except Exception as e:
             print(f"Inference error: {e}")
             raise HTTPException(status_code=500, detail="Inference failed")
@@ -170,13 +166,10 @@ def fastapi_app():
         name_b = imageB.filename or "Image B"
 
         async def event_stream():
-            # Phase 1: parallel TRIBE v2 inference
+            # Phase 1: TRIBE v2 inference (sequential, model not thread-safe)
             loop = asyncio.get_event_loop()
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                fut_a = pool.submit(predict, img_a, model)
-                fut_b = pool.submit(predict, img_b, model)
-                raw_a = await loop.run_in_executor(None, fut_a.result)
-                raw_b = await loop.run_in_executor(None, fut_b.result)
+            raw_a = await loop.run_in_executor(None, predict, img_a, model)
+            raw_b = await loop.run_in_executor(None, predict, img_b, model)
 
             norm_a, norm_b = normalize_joint(raw_a, raw_b)
             activations_arr = np.stack([norm_a, norm_b], axis=0)

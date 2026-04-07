@@ -2,6 +2,39 @@ import { ComparisonResult, PresetComparison, ChatMessage } from "./types"
 
 const API_TIMEOUT = 180000 // 180s — TRIBE v2 inference + Gemini analysis
 
+/**
+ * Resize image client-side before uploading.
+ * TRIBE v2 downscales to 512px anyway, so sending 3000px+ images wastes bandwidth.
+ */
+async function resizeImage(file: File, maxDim: number = 1024): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const { width, height } = img
+      if (Math.max(width, height) <= maxDim) {
+        URL.revokeObjectURL(img.src)
+        resolve(file) // already small enough
+        return
+      }
+      const scale = maxDim / Math.max(width, height)
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.round(width * scale)
+      canvas.height = Math.round(height * scale)
+      const ctx = canvas.getContext("2d")!
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(img.src)
+      canvas.toBlob(
+        (blob) => {
+          resolve(new File([blob!], file.name, { type: "image/jpeg" }))
+        },
+        "image/jpeg",
+        0.85
+      )
+    }
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export const PRESETS: PresetComparison[] = [
   { id: "apple-vs-cluttered", label: "Apple vs Cluttered", file: "apple-vs-cluttered.json" },
   { id: "face-vs-noface", label: "Face vs No Face", file: "face-vs-noface.json" },
@@ -21,9 +54,13 @@ export async function compareImages(
   imageA: File,
   imageB: File
 ): Promise<ComparisonResult> {
+  const [resizedA, resizedB] = await Promise.all([
+    resizeImage(imageA),
+    resizeImage(imageB),
+  ])
   const formData = new FormData()
-  formData.append("imageA", imageA)
-  formData.append("imageB", imageB)
+  formData.append("imageA", resizedA)
+  formData.append("imageB", resizedB)
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT)
@@ -51,9 +88,13 @@ export async function compareImagesStream(
   onBrain: (partial: ComparisonResult) => void,
   onAnalysis: (full: ComparisonResult) => void,
 ): Promise<void> {
+  const [resizedA, resizedB] = await Promise.all([
+    resizeImage(imageA),
+    resizeImage(imageB),
+  ])
   const formData = new FormData()
-  formData.append("imageA", imageA)
-  formData.append("imageB", imageB)
+  formData.append("imageA", resizedA)
+  formData.append("imageB", resizedB)
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT)
