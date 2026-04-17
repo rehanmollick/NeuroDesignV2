@@ -2,7 +2,7 @@
 
 > See how the human brain actually responds to your designs. Upload two images, get predicted fMRI brain activation maps, 3D heatmaps, and multimodal AI analysis telling you which design wins and why.
 
-**[Live Demo →](https://frontend-gamma-ten-23.vercel.app)**
+**[Live Demo →]([https://frontend-gamma-ten-23.vercel.app](https://neurodesign-v2.vercel.app/))**
 
 This is **V2** — a post-hackathon rewrite of NeuroDesign with a new model stack, composite neural signals, a neuroscience RAG knowledge base, and a real test suite. For the original hackathon build, see the V1 repo: https://github.com/rehanmollick/NeuroDesign
 
